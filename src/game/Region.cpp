@@ -3,6 +3,7 @@
 
 void initRegion( Region* r, Vector2D p, Vector2D sz, int _layout, list<GameObject*> objs, list<Player*> pls )
 {
+	printf("=+=+ initRegion _layout: %d\n", _layout);
 	r->pos  = p;
 	r->size = sz;
 	

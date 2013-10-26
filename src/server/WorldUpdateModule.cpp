@@ -69,8 +69,12 @@ void WorldUpdateModule::run()
 	/* main loop */
 	while ( true )
 	{
+		/*
+			stage 1: requests coming from clients get processed 
+			and the world map gets updated accordingly. 
+		*/
 		start_time = SDL_GetTicks();
-		timeout	= sd->regular_update_interval;
+		timeout	= sd->regular_update_interval; // this stage lasts for a fixed amount of time
 		
         while( (m = comm->receive( timeout, t_id )) != NULL )
         {
@@ -107,6 +111,10 @@ void WorldUpdateModule::run()
         
         SDL_WaitBarrier(barrier);
         
+        /* 
+        	stage 2: needs to be executed by only one thread, does load balancing 
+        	and quest planning
+        */
         if( t_id == 0 )
         {
         	sd->wm.balance();
@@ -133,6 +141,10 @@ void WorldUpdateModule::run()
         
         SDL_WaitBarrier(barrier);
         
+        /*
+        	stage 3: each thread sends world updates back to 
+        	its clients with their area of interest
+        */
         wui = SDL_GetTicks() - start_time;
         avg_wui = ( avg_wui < 0 ) ? wui : ( avg_wui * 0.95 + (double)wui * 0.05 );        
         start_time = SDL_GetTicks();

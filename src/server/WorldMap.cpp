@@ -24,7 +24,11 @@ void WorldMap::generate()
 	
 	n_regs.x = size.x / regmin.x;
 	n_regs.y = size.y / regmin.y;
+
+	printf("=+=+ n_regs.x: %d\n", n_regs.x);
+	printf("=+=+ n_regs.y: %d\n", n_regs.y);
 	int regions_per_thread = (n_regs.x * n_regs.y - 1) / sd->num_threads + 1;
+	printf("=+=+ regions_per_thread: %d\n", regions_per_thread);
 	regions = new Region*[ n_regs.x ];
 	for( i = 0, pos.x = 0; i < n_regs.x; i++, pos.x += regmin.x )
 	{
@@ -268,6 +272,39 @@ void WorldMap::reassignRegion( Region* r, int new_layout )
 
 void WorldMap::balance_lightest()
 {
+	int max = 0;
+	int max_thread = 0;
+	int min = players[0].size();
+	int min_thread = 0;
+
+	for( int i = 0; i < sd->num_threads; i++ ) {
+		if (players[i].size() > max) {
+			max = players[i].size();
+			max_thread = i;
+		} else if (players[i].size() < min) {
+			min = players[i].size();
+			min_thread = i;
+		}
+	}
+
+	printf("=+=+ balance_lightest max_thread: %d, max: %d\n", max_thread, max);
+	printf("=+=+ balance_lightest min_thread: %d, min: %d\n", min_thread, min);
+
+	int heaviest = 0;
+	Region* heaviest_region = NULL;
+	int heavyi, heavyj;
+	for( int i = 0; i < n_regs.x; i++ )
+		for( int j = 0; j < n_regs.y; j++ )
+			if (regions[i][j].layout == max_thread && regions[i][j].n_pls > heaviest) {
+				heaviest = regions[i][j].n_pls;
+				heaviest_region = &regions[i][j];
+				heavyi = i;
+				heavyj = j;
+			}
+
+	printf("=+=+ balance_lightest heaviest_region: [%d , %d], heaviest: %d\n", heavyi, heavyj, heaviest);
+
+	reassignRegion(heaviest_region, min_thread);
 }
 
 void WorldMap::balance_spread()
@@ -280,14 +317,23 @@ void WorldMap::balance()
 	if ( now - last_balance < sd->load_balance_limit )	return;
 	last_balance = now;
 	
-	if( !strcmp( sd->algorithm_name, "static" ) )		return;
+	if( !strcmp( sd->algorithm_name, "static" ) ) {
+		printf("=+=+ balance: static\n");
+		return;
+	}
 	
 	n_players = 0;
 	for( int i = 0; i < sd->num_threads; i++ )			n_players += players[i].size();
 	if( n_players == 0 )								return;
 	
-	if( !strcmp( sd->algorithm_name, "lightest" ) )		return balance_lightest();
-	if( !strcmp( sd->algorithm_name, "spread" ) )		return balance_spread();
+	if( !strcmp( sd->algorithm_name, "lightest" ) )	{
+		printf("=+=+ balance: lightest\n");
+		return balance_lightest();
+	}	
+	if( !strcmp( sd->algorithm_name, "spread" ) ) {
+		printf("=+=+ balance: spread\n");
+		return balance_spread();
+	}		
 	
 	printf("Algorithm %s is not implemented.\n", sd->algorithm_name);
 	return;
