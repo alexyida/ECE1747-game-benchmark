@@ -259,6 +259,7 @@ void	WorldMap::rewardPlayers( Vector2D quest_pos )
 
 void WorldMap::reassignRegion( Region* r, int new_layout )
 {
+	printf("=+=+ lightest reassignRegion old: %d, new %d, # %lu \n", r->layout, new_layout, r->players.size());
 	list<Player*>::iterator pi;			//iterator for players
 	
 	for ( pi = r->players.begin(); pi != r->players.end(); pi++ )
@@ -287,24 +288,42 @@ void WorldMap::balance_lightest()
 		}
 	}
 
-	printf("=+=+ balance_lightest max_thread: %d, max: %d\n", max_thread, max);
-	printf("=+=+ balance_lightest min_thread: %d, min: %d\n", min_thread, min);
-
-	int heaviest = 0;
-	Region* heaviest_region = NULL;
-	int heavyi, heavyj;
-	for( int i = 0; i < n_regs.x; i++ )
-		for( int j = 0; j < n_regs.y; j++ )
-			if (regions[i][j].layout == max_thread && regions[i][j].n_pls > heaviest) {
-				heaviest = regions[i][j].n_pls;
-				heaviest_region = &regions[i][j];
-				heavyi = i;
-				heavyj = j;
-			}
-
-	printf("=+=+ balance_lightest heaviest_region: [%d , %d], heaviest: %d\n", heavyi, heavyj, heaviest);
-
-	reassignRegion(heaviest_region, min_thread);
+	float safe_level = (sd->light_level + sd->overloaded_level) / 2;
+	if (max > n_players / sd->num_threads * sd->overloaded_level &&
+		min < n_players / sd->num_threads * sd->light_level) {
+		printf("=+=+ balance_lightest max_thread: %d, max: %d\n", max_thread, max);
+		printf("=+=+ balance_lightest min_thread: %d, min: %d\n", min_thread, min);
+		// overloaded, need to shed load
+		for( int i = 0; i < n_regs.x; i++ )
+			for( int j = 0; j < n_regs.y; j++ )
+				if (regions[i][j].layout == min_thread) {
+					// check adjacent regions to maintain region locality
+					if (i != 0 && j != 0) {
+						if (regions[i - 1][j - 1].layout == max_thread &&
+							players[min_thread].size() + regions[i - 1][j - 1].n_pls <= n_players / sd->num_threads * safe_level)
+							reassignRegion(&regions[i - 1][j - 1], min_thread);
+					}
+					if (i != 0 && j != n_regs.y - 1) {
+						if (regions[i - 1][j + 1].layout == max_thread &&
+							players[min_thread].size() + regions[i - 1][j + 1].n_pls <= n_players / sd->num_threads * safe_level)
+							reassignRegion(&regions[i - 1][j + 1], min_thread);
+					}
+					if (i != n_regs.x - 1 && j != 0) {
+						if (regions[i + 1][j - 1].layout == max_thread &&
+							players[min_thread].size() + regions[i + 1][j - 1].n_pls <= n_players / sd->num_threads * safe_level)
+							reassignRegion(&regions[i + 1][j - 1], min_thread);
+					}
+					if (i != n_regs.x - 1 && j != n_regs.y - 1) {
+						if (regions[i + 1][j + 1].layout == max_thread &&
+							players[min_thread].size() + regions[i + 1][j - 1].n_pls <= n_players / sd->num_threads * safe_level)
+							reassignRegion(&regions[i + 1][j + 1], min_thread);
+					}
+				} else if (regions[i][j].layout == max_thread) {
+					printf("=+=+ balance_lightest region player #: %d\n", regions[i][j].n_pls);
+					if (players[min_thread].size() + regions[i][j].n_pls <= n_players / sd->num_threads * safe_level)
+						reassignRegion(&regions[i][j], min_thread);
+				}
+	}
 }
 
 void WorldMap::balance_spread()

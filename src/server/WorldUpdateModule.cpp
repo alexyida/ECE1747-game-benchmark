@@ -50,6 +50,8 @@ void WorldUpdateModule::run()
 	Uint32 start_time;
     Uint32 timeout;
     Uint32 wui, rui;
+    Uint32 processing_starttime, processing_duration, sending_starttime, sending_duration;
+    Uint32 processsing_total, sending_total;
     
 	Message *m;
 	IPaddress addr;
@@ -66,9 +68,17 @@ void WorldUpdateModule::run()
     	
 	printf("WorldUpdateModule started\n");
 
+	int processing_counter, sending_counter;
+	int iter = 0;
+
 	/* main loop */
 	while ( true )
 	{
+		processsing_total = 0;
+		sending_total = 0;
+
+		processing_counter = 0;
+		sending_counter = 0;
 		/*
 			stage 1: requests coming from clients get processed 
 			and the world map gets updated accordingly. 
@@ -78,6 +88,7 @@ void WorldUpdateModule::run()
 		
         while( (m = comm->receive( timeout, t_id )) != NULL )
         {
+        	processing_starttime = SDL_GetTicks();
             addr = m->getAddress();
             type = m->getType();
             p = sd->wm.findPlayer( addr, t_id );
@@ -107,7 +118,13 @@ void WorldUpdateModule::run()
             delete m;
             timeout = sd->regular_update_interval - (SDL_GetTicks() - start_time);
             if( ((int)timeout) < 0 )	timeout = 0;
+            processing_duration = SDL_GetTicks() - processing_starttime;
+            processsing_total += processing_duration;
+            processing_counter++;
         }
+
+        printf("=+=+ LOGGING iter: %d, t_id: %d, # of requests: %d, processing duration: %u\n", iter, t_id, processing_counter, processsing_total);        
+
         
         SDL_WaitBarrier(barrier);
         
@@ -120,22 +137,24 @@ void WorldUpdateModule::run()
         	sd->wm.balance();
         	
         	if( rand() % 100 < 10 )		sd->wm.regenerateObjects();
-        	
-        	sd->send_start_quest = 0; sd->send_end_quest = 0;        	
-			if( start_time > start_quest )
-			{
-				start_quest = end_quest + sd->quest_between;
-				sd->quest_pos.x = (rand() % sd->wm.n_regs.x) * CLIENT_MATRIX_SIZE + MAX_CLIENT_VIEW;
-				sd->quest_pos.y = (rand() % sd->wm.n_regs.y) * CLIENT_MATRIX_SIZE + MAX_CLIENT_VIEW;
-				sd->send_start_quest = 1;
-				if( sd->display_quests )		printf("New quest %d,%d\n", sd->quest_pos.x, sd->quest_pos.y);
-			}			
-			if( start_time > end_quest )
-			{
-				sd->wm.rewardPlayers( sd->quest_pos );
-				end_quest = start_quest + sd->quest_min + rand() % (sd->quest_max-sd->quest_min+1);
-				sd->send_end_quest = 1;
-				if( sd->display_quests )		printf("Quest over\n");				
+   			
+   			if (false) { // turn on/off quest
+	        	sd->send_start_quest = 0; sd->send_end_quest = 0;        	
+				if( start_time > start_quest )
+				{
+					start_quest = end_quest + sd->quest_between;
+					sd->quest_pos.x = (rand() % sd->wm.n_regs.x) * CLIENT_MATRIX_SIZE + MAX_CLIENT_VIEW;
+					sd->quest_pos.y = (rand() % sd->wm.n_regs.y) * CLIENT_MATRIX_SIZE + MAX_CLIENT_VIEW;
+					sd->send_start_quest = 1;
+					if( sd->display_quests )		printf("New quest %d,%d\n", sd->quest_pos.x, sd->quest_pos.y);
+				}			
+				if( start_time > end_quest )
+				{
+					sd->wm.rewardPlayers( sd->quest_pos );
+					end_quest = start_quest + sd->quest_min + rand() % (sd->quest_max-sd->quest_min+1);
+					sd->send_end_quest = 1;
+					if( sd->display_quests )		printf("Quest over\n");				
+				}
 			}
         }
         
@@ -153,6 +172,7 @@ void WorldUpdateModule::run()
 	    bucket->start();
 	    while ( ( p = bucket->next() ) != NULL )
 	    {
+	    	sending_starttime = SDL_GetTicks();
 	    	ms = new MessageWithSerializator( MESSAGE_SC_REGULAR_UPDATE, t_id, p->address );	assert(ms);
 		    s = ms->getSerializator();															assert(s);
 		    
@@ -163,11 +183,17 @@ void WorldUpdateModule::run()
 	    	
 	    	if( sd->send_start_quest )		comm->send( new MessageXY(MESSAGE_SC_NEW_QUEST, t_id, p->address, sd->quest_pos), t_id );
 	    	if( sd->send_end_quest )		comm->send( new Message(MESSAGE_SC_QUEST_OVER, t_id, p->address), t_id );
+	    	sending_duration = SDL_GetTicks() - sending_starttime;
+	    	sending_total += sending_duration;
+	    	sending_counter++;
 	    }
+
+	    printf("=+=+ LOGGING iter: %d, t_id: %d, # of updates: %d, processing duration: %u\n", iter,t_id, sending_counter, sending_total);        
 	
 	    SDL_WaitBarrier(barrier);
 	    rui = SDL_GetTicks() - start_time;    
 	    avg_rui = ( avg_rui < 0 ) ? rui : ( avg_rui * 0.95 + (double)rui * 0.05 );	    
+	    iter++;
 	}
 }
 
