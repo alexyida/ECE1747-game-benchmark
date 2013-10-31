@@ -41,10 +41,10 @@ for f in f_list:
     elif i == 3:
         title = "Lightest algorithm with quest"
 
-    plt.plot(requests[0][0])
-    plt.plot(requests[1][0])
-    plt.plot(requests[2][0])
-    plt.plot(requests[3][0])
+    print title
+    for t in range(0, 4):    
+        plt.plot(requests[t][0])
+        print "avg request number t%d: %f" % (t, sum(requests[t][0]) / 10000.0)
     plt.title(title)
     plt.xlabel('iteration')
     plt.ylabel('# of requests')
@@ -59,10 +59,9 @@ for f in f_list:
     
     plt.clf()
     
-    plt.plot(requests[0][1])
-    plt.plot(requests[1][1])
-    plt.plot(requests[2][1])
-    plt.plot(requests[3][1])
+    for t in range(0, 4):    
+        plt.plot(requests[t][1])
+        print "avg processing time t%d: %f" % (t, sum(requests[t][1]) / 10000.0)
     plt.title(title)
     plt.xlabel('iteration')
     plt.ylabel('processing time')
@@ -77,10 +76,9 @@ for f in f_list:
     
     plt.clf()
     
-    plt.plot(updates[0][0])
-    plt.plot(updates[1][0])
-    plt.plot(updates[2][0])
-    plt.plot(updates[3][0])
+    for t in range(0, 4):    
+        plt.plot(updates[t][0])
+        print "avg update number t%d: %f" % (t, sum(updates[t][0]) / 10000.0)
     plt.title(title)
     plt.xlabel('iteration')
     plt.ylabel('# of updates')
@@ -95,10 +93,9 @@ for f in f_list:
     
     plt.clf()
     
-    plt.plot(updates[0][1])
-    plt.plot(updates[1][1])
-    plt.plot(updates[2][1])
-    plt.plot(updates[3][1])
+    for t in range(0, 4):    
+        plt.plot(updates[t][1])
+        print "avg sending time t%d: %f" % (t, sum(updates[t][1]) / 10000.0)
     plt.title(title)
     plt.xlabel('iteration')
     plt.ylabel('sending time')
