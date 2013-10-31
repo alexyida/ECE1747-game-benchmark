@@ -138,7 +138,7 @@ void WorldUpdateModule::run()
         	
         	if( rand() % 100 < 10 )		sd->wm.regenerateObjects();
    			
-   			if (false) { // turn on/off quest
+   			if (true) { // turn on/off quest
 	        	sd->send_start_quest = 0; sd->send_end_quest = 0;        	
 				if( start_time > start_quest )
 				{
